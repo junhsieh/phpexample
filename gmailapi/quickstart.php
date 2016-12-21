@@ -154,8 +154,8 @@ listLabels($service, $user);
 
 // Get the messages in the user's account.
 $messages = listMessages($service, $user, [
-	#'maxResults' => 5, // Return 5 messages.
-	'labelIds' => 'INBOX', // Only show messages in Inbox
+	#'maxResults' => 20, // Return 20 messages.
+	'labelIds' => 'INBOX', // Return messages in inbox.
 ]);
 
 foreach ($messages as $message) {
