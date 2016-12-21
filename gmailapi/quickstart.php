@@ -147,12 +147,12 @@ function listLabels($service, $userId, $optArr = []) {
 // Get the API client and construct the service object.
 $client = getClient();
 $service = new Google_Service_Gmail($client);
-
-// Print the labels in the user's account.
 $user = 'me';
 
+// Print the labels in the user's account.
 listLabels($service, $user);
 
+// Get the messages in the user's account.
 $messages = listMessages($service, $user, [
 	#'maxResults' => 5, // Return 5 messages.
 	'labelIds' => 'INBOX', // Only show messages in Inbox
