@@ -170,7 +170,7 @@ function listLabels($service, $userId, $optArr = []) {
 	} else {
 	  print "Labels:\n";
 	  foreach ($results->getLabels() as $label) {
-		printf("- %s %s\n", $label->getId(), $label->getName());
+		printf("- %s\t=>\t%s\n", $label->getId(), $label->getName());
 	  }
 	}
 }
@@ -213,6 +213,12 @@ foreach ($messages as $message) {
 	echo 'References: ' . (empty($headerArr['References']) ? '': $headerArr['References']);
 	echo "\n";
 
+	echo 'Labels: ' . implode(', ', $msgObj->getLabelIds());
+	echo "\n";
+	echo 'From: ' . (empty($headerArr['From']) ? '': $headerArr['From']);
+	echo "\n";
+	echo 'Subject: ' . (empty($headerArr['Subject']) ? '': $headerArr['Subject']);
+	echo "\n";
 	#print_r($headerArr);
 
 	$bodyArr = getBody($msgObj->getPayload()->getParts());
