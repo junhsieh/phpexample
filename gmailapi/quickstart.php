@@ -7,9 +7,11 @@ define('CREDENTIALS_PATH', '~/.credentials/gmail-php-quickstart.json');
 define('CLIENT_SECRET_PATH', __DIR__ . '/client_secret.json');
 // If modifying these scopes, delete your previously saved credentials
 // at ~/.credentials/gmail-php-quickstart.json
+// Reference: https://developers.google.com/gmail/api/auth/scopes
 define('SCOPES', implode(' ', array(
-  Google_Service_Gmail::GMAIL_READONLY)
-));
+  #Google_Service_Gmail::GMAIL_READONLY,
+  Google_Service_Gmail::MAIL_GOOGLE_COM,
+)));
 
 if (php_sapi_name() != 'cli') {
   throw new Exception('This application must be run on the command line.');
@@ -51,6 +53,11 @@ function getClient() {
 
   // Refresh the token if it's expired.
   if ($client->isAccessTokenExpired()) {
+	//$_RefreshToken = $client->getRefreshToken();
+    //$client->fetchAccessTokenWithRefreshToken($_RefreshToken);
+	//$_AccessToken = $client->getAccessToken();
+	//$_AccessToken['refresh_token'] = $_RefreshToken;
+    //file_put_contents($credentialsPath, json_encode($_AccessToken));
     $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
     file_put_contents($credentialsPath, json_encode($client->getAccessToken()));
   }
@@ -99,6 +106,30 @@ function listMessages($service, $userId, $optArr = []) {
   return $messages;
 }
 
+/**
+ * Modify the Labels a Message is associated with.
+ *
+ * @param  Google_Service_Gmail $service Authorized Gmail API instance.
+ * @param  string $userId User's email address. The special value 'me'
+ * can be used to indicate the authenticated user.
+ * @param  string $messageId ID of Message to modify.
+ * @param  array $labelsToAdd Array of Labels to add.
+ * @param  array $labelsToRemove Array of Labels to remove.
+ * @return Google_Service_Gmail_Message Modified Message.
+ */
+function modifyMessage($service, $userId, $messageId, $labelsToAdd, $labelsToRemove) {
+  $mods = new Google_Service_Gmail_ModifyMessageRequest();
+  $mods->setAddLabelIds($labelsToAdd);
+  $mods->setRemoveLabelIds($labelsToRemove);
+  try {
+    $message = $service->users_messages->modify($userId, $messageId, $mods);
+    print 'Message with ID: ' . $messageId . ' successfully modified.';
+    return $message;
+  } catch (Exception $e) {
+    print 'An error occurred: ' . $e->getMessage();
+  }
+}
+
 function getHeaderArr($dataArr) {
 	$outArr = [];
 	foreach ($dataArr as $key => $val) {
@@ -139,7 +170,7 @@ function listLabels($service, $userId, $optArr = []) {
 	} else {
 	  print "Labels:\n";
 	  foreach ($results->getLabels() as $label) {
-		printf("- %s\n", $label->getName());
+		printf("- %s %s\n", $label->getId(), $label->getName());
 	  }
 	}
 }
@@ -156,10 +187,20 @@ listLabels($service, $user);
 $messages = listMessages($service, $user, [
 	#'maxResults' => 20, // Return 20 messages.
 	'labelIds' => 'INBOX', // Return messages in inbox.
+	#'q' => 'is:unread',
 ]);
 
 foreach ($messages as $message) {
 	print 'Message with ID: ' . $message->getId() . "\n";
+
+	switch ($message->getId()) {
+		case "15923d6803b05485":
+			#modifyMessage($service, $user, $message->getId(), [], ['UNREAD']);
+			break;
+		case "15922bbdcd32b685":
+			modifyMessage($service, $user, $message->getId(), ['Label_7'], ['INBOX']);
+			break;
+	}
 
 	$msgObj = getMessage($service, $user, $message->getId());
 
@@ -176,4 +217,5 @@ foreach ($messages as $message) {
 
 	$bodyArr = getBody($msgObj->getPayload()->getParts());
 	echo 'Body: ' . (empty($bodyArr[0]) ? '' : $bodyArr[0]);
+	echo PHP_EOL . '======================' . PHP_EOL;
 }
