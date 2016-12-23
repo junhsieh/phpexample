@@ -341,12 +341,15 @@ EOD;
 			break;
 		case "1592d5ae901170e7":
 			#modifyMessage($service, $user, $message->getId(), [], ['UNREAD']);
-			#newMessage(
-            #    $message->getThreadId(),
-            #    (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
-            #    (empty($headerArr['To']) ? '': $headerArr['To']),
-            #    (empty($headerArr['From']) ? '': $headerArr['From'])
-            #);
+			newMessage(
+                $message->getThreadId(),
+                (empty($headerArr['In-Reply-To']) ? $headerArr['Message-ID'] : $headerArr['In-Reply-To']),
+                (empty($headerArr['References']) ? $headerArr['Message-ID'] : $headerArr['References']),
+                (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
+                $body,
+                (empty($headerArr['To']) ? '': $headerArr['To']),
+                (empty($headerArr['From']) ? '': $headerArr['From'])
+            );
 			#sendMessage($service, $user, newMessage(
             #    $message->getThreadId(),
             #    (empty($headerArr['In-Reply-To']) ? $headerArr['Message-ID'] : $headerArr['In-Reply-To']),
