@@ -226,7 +226,7 @@ function extractEmailAddress($str) {
   return $outArr;
 }
 
-function newMessage($threadId, $subject, $fromEmail, $toEmail) {
+function newMessage($threadId, $inReplyTo, $reference, $subject, $body, $fromEmail, $toEmail) {
 	$message = new Google_Service_Gmail_Message();
 
 	#$optParam = array();
@@ -245,20 +245,19 @@ function newMessage($threadId, $subject, $fromEmail, $toEmail) {
 	#$subject = $messageDetails['headers']['Subject'];
     #$from_name = 'test';
 	#$body = 'test 555';
-    $body = <<<EOD
-Hi there,
-<br>
-<br><b>test</b>
-EOD;
 
 	$mail = new PHPMailer();
+    $instance->SMTPDebug = false; // Debug. Turn it off when production.
 	$mail->CharSet = 'UTF-8';
     $mail->Encoding = 'base64';
+
+	$mail->addCustomHeader('In-Reply-To', $inReplyTo);
+	$mail->addCustomHeader('References', $reference);
 
 	$mail->setFrom($fromEmailArr[1], $fromEmailArr[0]);
 	$mail->addAddress($toEmailArr[1], $toEmailArr[0]);
 
-	$mail->Subject = $subject;
+	$mail->Subject = 'RE: ' . preg_replace('`^RE: `', '', $subject);
 	$mail->Body = $body;
 	$mail->isHTML(true);
 
@@ -266,6 +265,7 @@ EOD;
 
 	$mime = $mail->getSentMIMEMessage();
 
+    echo 'ThreadId: ' . $threadId . PHP_EOL;
     echo 'Subject: ' . $subject . PHP_EOL;
     echo 'From: ' . $fromEmail . PHP_EOL;
     echo 'To: ' . $toEmail . PHP_EOL;
@@ -295,6 +295,7 @@ $messages = listMessages($service, $user, [
 ]);
 
 foreach ($messages as $message) {
+    echo '=== [Begin] === ' . "\n";
 	print 'ThreadId: ' . $message->getThreadId() . "\n";
 	print 'ID: ' . $message->getId() . "\n";
 
@@ -320,14 +321,25 @@ foreach ($messages as $message) {
 	#print_r($headerArr);
 
 	$bodyArr = getBody($msgObj->getPayload()->getParts());
+
 	echo 'Body: ' . (empty($bodyArr[0]) ? '' : $bodyArr[0]);
-	echo PHP_EOL . '======================' . PHP_EOL;
+	echo "\n";
+	echo '=== [END] ===' . PHP_EOL;
+
+    $body = <<<EOD
+Hi there,
+<br>
+<br><b>test</b>
+<br>we are processing it. Wait a moment.
+EOD;
+
+    $body .= "\r\n" . (empty($bodyArr[0]) ? '' : $bodyArr[0]);
 
 	switch ($message->getId()) {
 		case "15922bbdcd32b685":
 			#modifyMessage($service, $user, $message->getId(), ['Label_7'], ['INBOX']);
 			break;
-		case "15923d6803b05485":
+		case "1592d5ae901170e7":
 			#modifyMessage($service, $user, $message->getId(), [], ['UNREAD']);
 			#newMessage(
             #    $message->getThreadId(),
@@ -335,12 +347,15 @@ foreach ($messages as $message) {
             #    (empty($headerArr['To']) ? '': $headerArr['To']),
             #    (empty($headerArr['From']) ? '': $headerArr['From'])
             #);
-			sendMessage($service, $user, newMessage(
-                $message->getThreadId(),
-                (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
-                (empty($headerArr['To']) ? '': $headerArr['To']),
-                (empty($headerArr['From']) ? '': $headerArr['From'])
-            ));
+			#sendMessage($service, $user, newMessage(
+            #    $message->getThreadId(),
+            #    (empty($headerArr['In-Reply-To']) ? $headerArr['Message-ID'] : $headerArr['In-Reply-To']),
+            #    (empty($headerArr['References']) ? $headerArr['Message-ID'] : $headerArr['References']),
+            #    (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
+            #    $body,
+            #    (empty($headerArr['To']) ? '': $headerArr['To']),
+            #    (empty($headerArr['From']) ? '': $headerArr['From'])
+            #));
 			break;
 	}
 
