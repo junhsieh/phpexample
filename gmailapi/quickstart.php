@@ -30,6 +30,7 @@ function getClient() {
 
   // Load previously authorized credentials from a file.
   $credentialsPath = expandHomeDirectory(CREDENTIALS_PATH);
+
   if (file_exists($credentialsPath)) {
     $accessToken = json_decode(file_get_contents($credentialsPath), true);
   } else {
@@ -49,17 +50,31 @@ function getClient() {
     file_put_contents($credentialsPath, json_encode($accessToken));
     printf("Credentials saved to %s\n", $credentialsPath);
   }
+
+    echo 'Before:' . PHP_EOL;
+	echo 'accessToken: ' ;
+	print_r($accessToken) . PHP_EOL;
+	echo 'getAccessToken: ' . json_encode($client->getAccessToken()) . PHP_EOL;
+	echo 'getRefreshToken: ' . $client->getRefreshToken() . PHP_EOL;
+
   $client->setAccessToken($accessToken);
 
   // Refresh the token if it's expired.
+    echo 'After:' . PHP_EOL;
+	echo 'accessToken: ' ;
+	print_r($accessToken) . PHP_EOL;
+	echo 'getAccessToken: ' . json_encode($client->getAccessToken()) . PHP_EOL;
+	echo 'getRefreshToken: ' . $client->getRefreshToken() . PHP_EOL;
+
   if ($client->isAccessTokenExpired()) {
-	//$_RefreshToken = $client->getRefreshToken();
-    //$client->fetchAccessTokenWithRefreshToken($_RefreshToken);
-	//$_AccessToken = $client->getAccessToken();
-	//$_AccessToken['refresh_token'] = $_RefreshToken;
-    //file_put_contents($credentialsPath, json_encode($_AccessToken));
-    $client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
-    file_put_contents($credentialsPath, json_encode($client->getAccessToken()));
+	$_RefreshToken = $client->getRefreshToken();
+    $client->fetchAccessTokenWithRefreshToken($_RefreshToken);
+	$_AccessToken = $client->getAccessToken();
+	$_AccessToken['refresh_token'] = $_RefreshToken;
+    file_put_contents($credentialsPath, json_encode($_AccessToken));
+
+    #$client->fetchAccessTokenWithRefreshToken($client->getRefreshToken());
+    #file_put_contents($credentialsPath, json_encode($client->getAccessToken()));
   }
   return $client;
 }
@@ -130,6 +145,25 @@ function modifyMessage($service, $userId, $messageId, $labelsToAdd, $labelsToRem
   }
 }
 
+/**
+ * Send Message.
+ *
+ * @param  Google_Service_Gmail $service Authorized Gmail API instance.
+ * @param  string $userId User's email address. The special value 'me'
+ * can be used to indicate the authenticated user.
+ * @param  Google_Service_Gmail_Message $message Message to send.
+ * @return Google_Service_Gmail_Message sent Message.
+ */
+function sendMessage($service, $userId, $message) {
+  try {
+    $message = $service->users_messages->send($userId, $message);
+    print 'Message with ID: ' . $message->getId() . ' sent.';
+    return $message;
+  } catch (Exception $e) {
+    print 'An error occurred: ' . $e->getMessage();
+  }
+}
+
 function getHeaderArr($dataArr) {
 	$outArr = [];
 	foreach ($dataArr as $key => $val) {
@@ -147,9 +181,13 @@ function getBody($dataArr) {
 	return $outArr;
 }
 
-function base64url_decode($data) {
-  return base64_decode(str_pad(strtr($data, '-_', '+/'), strlen($data) % 4, '=', STR_PAD_RIGHT));
-}
+function base64url_encode($data) { 
+  return rtrim(strtr(base64_encode($data), '+/', '-_'), '='); 
+} 
+
+function base64url_decode($data) { 
+  return base64_decode(str_pad(strtr($data, '-_', '+/'), strlen($data) % 4, '=', STR_PAD_RIGHT)); 
+} 
 
 function getMessage($service, $userId, $messageId) {
   try {
@@ -175,6 +213,72 @@ function listLabels($service, $userId, $optArr = []) {
 	}
 }
 
+function extractEmailAddress($str) {
+  $outArr = [];
+  $tmpArr1 = [];
+  $tmpArr2 = [];
+
+  preg_match_all('`([^<]+) <`', $str, $tmpArr1);
+  preg_match_all('`<([^>]+)>`', $str, $tmpArr2);
+
+  $outArr[] = (empty($tmpArr1[1][0]) ? '' : $tmpArr1[1][0]);
+  $outArr[] = (empty($tmpArr2[1][0]) ? '' : $tmpArr2[1][0]);
+  return $outArr;
+}
+
+function newMessage($threadId, $subject, $fromEmail, $toEmail) {
+	$message = new Google_Service_Gmail_Message();
+
+	#$optParam = array();
+
+	#$referenceId = '';
+	#$thread = $service->users_threads->get($userId, $threadId);
+	#$optParam['threadId'] = $threadId;
+	#$threadMessages = $thread->getMessages($optParam);
+	#$messageId = $threadMessages[0]->getId();
+
+	#$messageDetails = $this->getMessageDetails($messageId);
+	#$messageDetails = $messageDetails['data'];
+
+    $fromEmailArr = extractEmailAddress($fromEmail);
+    $toEmailArr = extractEmailAddress($toEmail);
+	#$subject = $messageDetails['headers']['Subject'];
+    #$from_name = 'test';
+	#$body = 'test 555';
+    $body = <<<EOD
+Hi there,
+<br>
+<br><b>test</b>
+EOD;
+
+	$mail = new PHPMailer();
+	$mail->CharSet = 'UTF-8';
+    $mail->Encoding = 'base64';
+
+	$mail->setFrom($fromEmailArr[1], $fromEmailArr[0]);
+	$mail->addAddress($toEmailArr[1], $toEmailArr[0]);
+
+	$mail->Subject = $subject;
+	$mail->Body = $body;
+	$mail->isHTML(true);
+
+	$mail->preSend();
+
+	$mime = $mail->getSentMIMEMessage();
+
+    echo 'Subject: ' . $subject . PHP_EOL;
+    echo 'From: ' . $fromEmail . PHP_EOL;
+    echo 'To: ' . $toEmail . PHP_EOL;
+    echo 'Mime: ' . PHP_EOL . $mime . PHP_EOL;
+
+	$raw = base64url_encode($mime);
+
+	$message->setRaw($raw);
+	$message->setThreadId($threadId);
+
+	return $message;
+}
+
 // Get the API client and construct the service object.
 $client = getClient();
 $service = new Google_Service_Gmail($client);
@@ -191,16 +295,8 @@ $messages = listMessages($service, $user, [
 ]);
 
 foreach ($messages as $message) {
-	print 'Message with ID: ' . $message->getId() . "\n";
-
-	switch ($message->getId()) {
-		case "15923d6803b05485":
-			#modifyMessage($service, $user, $message->getId(), [], ['UNREAD']);
-			break;
-		case "15922bbdcd32b685":
-			modifyMessage($service, $user, $message->getId(), ['Label_7'], ['INBOX']);
-			break;
-	}
+	print 'ThreadId: ' . $message->getThreadId() . "\n";
+	print 'ID: ' . $message->getId() . "\n";
 
 	$msgObj = getMessage($service, $user, $message->getId());
 
@@ -217,6 +313,8 @@ foreach ($messages as $message) {
 	echo "\n";
 	echo 'From: ' . (empty($headerArr['From']) ? '': $headerArr['From']);
 	echo "\n";
+	echo 'To: ' . (empty($headerArr['To']) ? '': $headerArr['To']);
+	echo "\n";
 	echo 'Subject: ' . (empty($headerArr['Subject']) ? '': $headerArr['Subject']);
 	echo "\n";
 	#print_r($headerArr);
@@ -224,4 +322,26 @@ foreach ($messages as $message) {
 	$bodyArr = getBody($msgObj->getPayload()->getParts());
 	echo 'Body: ' . (empty($bodyArr[0]) ? '' : $bodyArr[0]);
 	echo PHP_EOL . '======================' . PHP_EOL;
+
+	switch ($message->getId()) {
+		case "15922bbdcd32b685":
+			#modifyMessage($service, $user, $message->getId(), ['Label_7'], ['INBOX']);
+			break;
+		case "15923d6803b05485":
+			#modifyMessage($service, $user, $message->getId(), [], ['UNREAD']);
+			#newMessage(
+            #    $message->getThreadId(),
+            #    (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
+            #    (empty($headerArr['To']) ? '': $headerArr['To']),
+            #    (empty($headerArr['From']) ? '': $headerArr['From'])
+            #);
+			sendMessage($service, $user, newMessage(
+                $message->getThreadId(),
+                (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
+                (empty($headerArr['To']) ? '': $headerArr['To']),
+                (empty($headerArr['From']) ? '': $headerArr['From'])
+            ));
+			break;
+	}
+
 }
