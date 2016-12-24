@@ -175,6 +175,10 @@ function getHeaderArr($dataArr) {
 function getBody($dataArr) {
 	$outArr = [];
 	foreach	($dataArr as $key => $val) {
+		if ($key == 0) {
+			continue;
+		}
+
 		$outArr[] = base64url_decode($val->getBody()->getData());
 		break; // we are only interested in $dataArr[0]. Because $dataArr[1] is in HTML.
 	}
@@ -257,7 +261,7 @@ function newMessage($threadId, $inReplyTo, $reference, $subject, $body, $fromEma
 	$mail->setFrom($fromEmailArr[1], $fromEmailArr[0]);
 	$mail->addAddress($toEmailArr[1], $toEmailArr[0]);
 
-	$mail->Subject = 'RE: ' . preg_replace('`^RE: `', '', $subject);
+	$mail->Subject = 'Re: ' . preg_replace('`^R[Ee]: `', '', $subject);
 	$mail->Body = $body;
 	$mail->isHTML(true);
 
@@ -290,8 +294,9 @@ listLabels($service, $user);
 // Get the messages in the user's account.
 $messages = listMessages($service, $user, [
 	#'maxResults' => 20, // Return 20 messages.
-	'labelIds' => 'INBOX', // Return messages in inbox.
+	#'labelIds' => 'INBOX', // Return messages in inbox.
 	#'q' => 'is:unread',
+	'q' => 'is:INBOX',
 ]);
 
 foreach ($messages as $message) {
@@ -329,31 +334,38 @@ foreach ($messages as $message) {
     $body = <<<EOD
 Hi there,
 <br>
-<br><b>test</b>
-<br>we are processing it. Wait a moment.
+<br><b>almost almost</b>
+<br>keep waiting.
 EOD;
 
     $body .= "\r\n" . (empty($bodyArr[0]) ? '' : $bodyArr[0]);
+
+	$messageId = (empty($headerArr['Message-ID']) ? '' : $headerArr['Message-ID']);
+	$reference = (empty($headerArr['References']) ? $messageId : $headerArr['References']);
+
+	if (!empty($messageId)) {
+		$reference .= ' ' . $messageId;
+	}
 
 	switch ($message->getId()) {
 		case "15922bbdcd32b685":
 			#modifyMessage($service, $user, $message->getId(), ['Label_7'], ['INBOX']);
 			break;
-		case "1592d5ae901170e7":
+		case "1592d6e0cbc04b31":
 			#modifyMessage($service, $user, $message->getId(), [], ['UNREAD']);
-			newMessage(
-                $message->getThreadId(),
-                (empty($headerArr['In-Reply-To']) ? $headerArr['Message-ID'] : $headerArr['In-Reply-To']),
-                (empty($headerArr['References']) ? $headerArr['Message-ID'] : $headerArr['References']),
-                (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
-                $body,
-                (empty($headerArr['To']) ? '': $headerArr['To']),
-                (empty($headerArr['From']) ? '': $headerArr['From'])
-            );
+			#newMessage(
+            #    $message->getThreadId(),
+            #    $messageId,
+            #    $reference,
+            #    (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
+            #    $body,
+            #    (empty($headerArr['To']) ? '': $headerArr['To']),
+            #    (empty($headerArr['From']) ? '': $headerArr['From'])
+            #);
 			#sendMessage($service, $user, newMessage(
             #    $message->getThreadId(),
-            #    (empty($headerArr['In-Reply-To']) ? $headerArr['Message-ID'] : $headerArr['In-Reply-To']),
-            #    (empty($headerArr['References']) ? $headerArr['Message-ID'] : $headerArr['References']),
+            #    $messageId,
+            #    $reference,
             #    (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
             #    $body,
             #    (empty($headerArr['To']) ? '': $headerArr['To']),
