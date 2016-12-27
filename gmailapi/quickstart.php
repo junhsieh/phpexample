@@ -51,20 +51,20 @@ function getClient() {
     printf("Credentials saved to %s\n", $credentialsPath);
   }
 
-    echo 'Before:' . PHP_EOL;
-	echo 'accessToken: ' ;
-	print_r($accessToken) . PHP_EOL;
-	echo 'getAccessToken: ' . json_encode($client->getAccessToken()) . PHP_EOL;
-	echo 'getRefreshToken: ' . $client->getRefreshToken() . PHP_EOL;
+    #echo 'Before:' . PHP_EOL;
+	#echo 'accessToken: ' ;
+	#print_r($accessToken) . PHP_EOL;
+	#echo 'getAccessToken: ' . json_encode($client->getAccessToken()) . PHP_EOL;
+	#echo 'getRefreshToken: ' . $client->getRefreshToken() . PHP_EOL;
 
   $client->setAccessToken($accessToken);
 
   // Refresh the token if it's expired.
-    echo 'After:' . PHP_EOL;
-	echo 'accessToken: ' ;
-	print_r($accessToken) . PHP_EOL;
-	echo 'getAccessToken: ' . json_encode($client->getAccessToken()) . PHP_EOL;
-	echo 'getRefreshToken: ' . $client->getRefreshToken() . PHP_EOL;
+    #echo 'After:' . PHP_EOL;
+	#echo 'accessToken: ' ;
+	#print_r($accessToken) . PHP_EOL;
+	#echo 'getAccessToken: ' . json_encode($client->getAccessToken()) . PHP_EOL;
+	#echo 'getRefreshToken: ' . $client->getRefreshToken() . PHP_EOL;
 
   if ($client->isAccessTokenExpired()) {
 	$_RefreshToken = $client->getRefreshToken();
@@ -172,16 +172,40 @@ function getHeaderArr($dataArr) {
 	return $outArr;
 }
 
-function getBody($dataArr) {
+function getBody($payload) {
 	$outArr = [];
-	foreach	($dataArr as $key => $val) {
-		if ($key == 0) {
-			continue;
-		}
 
-		$outArr[] = base64url_decode($val->getBody()->getData());
-		break; // we are only interested in $dataArr[0]. Because $dataArr[1] is in HTML.
+	echo 'Payload MimeType: ' . $payload->getMimeType() . PHP_EOL;
+
+	if ($payload->getBody()->getSize() > 0) {
+		echo '======= [Parts] first ========' . PHP_EOL;
+		echo 'Body: ' . base64url_decode($payload->getBody()->getData()) . PHP_EOL;
+		$outArr[] = base64url_decode($payload->getBody()->getData());
+	} else {
+		foreach	($payload->getParts() as $key => $val) {
+			if ($val->getBody()->getSize() > 0) {
+				echo '======= [Parts] ' . $key . ' ========' . PHP_EOL;
+				echo 'MimeType: ' . $val->getMimeType() . PHP_EOL;
+				echo 'Filename: ' . $val->getFilename() . PHP_EOL;
+				echo 'Size: ' . $val->getBody()->getSize() . PHP_EOL;
+				echo 'getAttachmentId: ' . $val->getBody()->getAttachmentId() . PHP_EOL;
+				echo 'Data: ' . base64url_decode($val->getBody()->getData()) . PHP_EOL;
+
+				$outArr[] = $val->getBody()->getAttachmentId();
+			} else {
+				$test = $val->getParts();
+
+				foreach($test as $key2 => $val2) {
+					echo '======= [Parts] ' . $key . ' - ' . $key2 . ' ========' . PHP_EOL;
+					echo 'MimeType: ' . $val2->getMimeType() . PHP_EOL;
+					echo 'Size: ' . $val2->getBody()->getSize() . PHP_EOL;
+					echo 'Body: ' . base64url_decode($val2->getBody()->getData()) . PHP_EOL;
+					$outArr[] = base64url_decode($val2->getBody()->getData());
+				}
+			}
+		}
 	}
+
 	return $outArr;
 }
 
@@ -289,14 +313,16 @@ $service = new Google_Service_Gmail($client);
 $user = 'me';
 
 // Print the labels in the user's account.
-listLabels($service, $user);
+#listLabels($service, $user);
 
 // Get the messages in the user's account.
 $messages = listMessages($service, $user, [
 	#'maxResults' => 20, // Return 20 messages.
 	#'labelIds' => 'INBOX', // Return messages in inbox.
 	#'q' => 'is:unread',
-	'q' => 'is:INBOX',
+	#'q' => 'is:INBOX',
+	#'q' => 'is:SENT',
+	'q' => 'in:(INBOX OR SENT)',
 ]);
 
 foreach ($messages as $message) {
@@ -325,17 +351,24 @@ foreach ($messages as $message) {
 	echo "\n";
 	#print_r($headerArr);
 
-	$bodyArr = getBody($msgObj->getPayload()->getParts());
+	$bodyArr = getBody($msgObj->getPayload());
 
-	echo 'Body: ' . (empty($bodyArr[0]) ? '' : $bodyArr[0]);
-	echo "\n";
+	#$test = $msgObj->getPayload()->getBody();
+	#print_r(base64url_decode($test->getData()));
+	#print_r($bodyArr);
+
+	#echo "Filename: " . $msgObj->getPayload()->getFilename();
+	#print_r(get_class_methods($msgObj->getPayload()));
+	#echo "\n";
+	#echo "MimeType: " . $msgObj->getPayload()->getMimeType();
+	#echo "\n";
+
+	#echo 'Body: ' . (empty($bodyArr[1]) ? '' : $bodyArr[1]);
+	#echo "\n";
 	echo '=== [END] ===' . PHP_EOL;
 
     $body = <<<EOD
-Hi there,
-<br>
-<br><b>almost almost</b>
-<br>keep waiting.
+Bot: processing 1
 EOD;
 
     $body .= "\r\n" . (empty($bodyArr[0]) ? '' : $bodyArr[0]);
@@ -351,7 +384,7 @@ EOD;
 		case "15922bbdcd32b685":
 			#modifyMessage($service, $user, $message->getId(), ['Label_7'], ['INBOX']);
 			break;
-		case "1592d6e0cbc04b31":
+		case "15941b45dd881b87":
 			#modifyMessage($service, $user, $message->getId(), [], ['UNREAD']);
 			#newMessage(
             #    $message->getThreadId(),
@@ -373,5 +406,4 @@ EOD;
             #));
 			break;
 	}
-
 }
