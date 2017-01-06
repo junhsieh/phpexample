@@ -122,6 +122,62 @@ function listMessages($service, $userId, $optArr = []) {
 }
 
 /**
+ * Get all Threads in the user's mailbox.
+ *
+ * @param  Google_Service_Gmail $service Authorized Gmail API instance.
+ * @param  string $userId User's email address. The special value 'me'
+ * can be used to indicate the authenticated user.
+ * @return array Array of Threads.
+ */
+function listThreads($service, $userId) {
+  $threads = array();
+  $pageToken = NULL;
+  do {
+    try {
+      $opt_param = array();
+      if ($pageToken) {
+        $opt_param['pageToken'] = $pageToken;
+      }
+      $threadsResponse = $service->users_threads->listUsersThreads($userId, $opt_param);
+      if ($threadsResponse->getThreads()) {
+        $threads = array_merge($threads, $threadsResponse->getThreads());
+        $pageToken = $threadsResponse->getNextPageToken();
+      }
+    } catch (Exception $e) {
+      print 'An error occurred: ' . $e->getMessage();
+      $pageToken = NULL;
+    }
+  } while ($pageToken);
+
+  #foreach ($threads as $thread) {
+  #  print 'Thread with ID: ' . $thread->getId() . "\n";
+  #}
+
+  return $threads;
+}
+
+/**
+ * Get Thread with given ID.
+ *
+ * @param  Google_Service_Gmail $service Authorized Gmail API instance.
+ * @param  string $userId User's email address. The special value 'me'
+ * can be used to indicate the authenticated user.
+ * @param  string $threadId ID of Thread to get.
+ * @return Google_Service_Gmail_Thread Retrieved Thread.
+ */
+function getThread($service, $userId, $threadId) {
+  try {
+    $thread = $service->users_threads->get($userId, $threadId);
+    $messages = $thread->getMessages();
+    $msgCount = count($messages);
+    print 'Number of Messages in the Thread: ' . $msgCount . PHP_EOL;
+    return $thread;
+  } catch (Exception $e){
+    print 'An error occurred: ' . $e->getMessage();
+  }
+}
+
+/**
  * Modify the Labels a Message is associated with.
  *
  * @param  Google_Service_Gmail $service Authorized Gmail API instance.
@@ -167,7 +223,7 @@ function sendMessage($service, $userId, $message) {
 function getHeaderArr($dataArr) {
 	$outArr = [];
 	foreach ($dataArr as $key => $val) {
-		$outArr[$val->name] = $val->value;
+		$outArr[strtoupper($val->name)] = $val->value;
 	}
 	return $outArr;
 }
@@ -315,6 +371,20 @@ $user = 'me';
 // Print the labels in the user's account.
 #listLabels($service, $user);
 
+/*
+$threads = listThreads($service, $user);
+
+foreach ($threads as $thread) {
+    echo 'Thread with ID: ' . $thread->getId() . "\n";
+
+	$threadObj = getThread($service, $user, $thread->getId());
+
+    $messages = $threadObj->getMessages();
+}
+
+return true;
+*/
+
 // Get the messages in the user's account.
 $messages = listMessages($service, $user, [
 	#'maxResults' => 20, // Return 20 messages.
@@ -334,20 +404,20 @@ foreach ($messages as $message) {
 
 	$headerArr = getHeaderArr($msgObj->getPayload()->getHeaders());
 
-	echo 'Message-ID: ' . $headerArr['Message-ID'];
+	echo 'Message-ID: ' . $headerArr['MESSAGE-ID'];
 	echo "\n";
-	echo 'In-Reply-To: ' . (empty($headerArr['In-Reply-To']) ? '' : $headerArr['In-Reply-To']);
+	echo 'In-Reply-To: ' . (empty($headerArr['IN-REPLY-TO']) ? '' : $headerArr['IN-REPLY-TO']);
 	echo "\n";
-	echo 'References: ' . (empty($headerArr['References']) ? '': $headerArr['References']);
+	echo 'References: ' . (empty($headerArr['REFERENCES']) ? '': $headerArr['REFERENCES']);
 	echo "\n";
 
 	echo 'Labels: ' . implode(', ', $msgObj->getLabelIds());
 	echo "\n";
-	echo 'From: ' . (empty($headerArr['From']) ? '': $headerArr['From']);
+	echo 'From: ' . (empty($headerArr['FROM']) ? '': $headerArr['FROM']);
 	echo "\n";
-	echo 'To: ' . (empty($headerArr['To']) ? '': $headerArr['To']);
+	echo 'To: ' . (empty($headerArr['TO']) ? '': $headerArr['TO']);
 	echo "\n";
-	echo 'Subject: ' . (empty($headerArr['Subject']) ? '': $headerArr['Subject']);
+	echo 'Subject: ' . (empty($headerArr['SUBJECT']) ? '': $headerArr['SUBJECT']);
 	echo "\n";
 	#print_r($headerArr);
 
@@ -371,10 +441,10 @@ foreach ($messages as $message) {
 Bot: processing 1
 EOD;
 
-    $body .= "\r\n" . (empty($bodyArr[0]) ? '' : $bodyArr[0]);
+    $body .= "\r\n" . (empty($bodyArr[1]) ? '' : trim($bodyArr[1]) . "\r\n");
 
-	$messageId = (empty($headerArr['Message-ID']) ? '' : $headerArr['Message-ID']);
-	$reference = (empty($headerArr['References']) ? $messageId : $headerArr['References']);
+	$messageId = (empty($headerArr['MESSAGE-ID']) ? '' : $headerArr['MESSAGE-ID']);
+	$reference = (empty($headerArr['REFERENCES']) ? $messageId : $headerArr['REFERENCES']);
 
 	if (!empty($messageId)) {
 		$reference .= ' ' . $messageId;
@@ -384,25 +454,25 @@ EOD;
 		case "15922bbdcd32b685":
 			#modifyMessage($service, $user, $message->getId(), ['Label_7'], ['INBOX']);
 			break;
-		case "15941b45dd881b87":
+		case "159425d44fd4d44a":
 			#modifyMessage($service, $user, $message->getId(), [], ['UNREAD']);
 			#newMessage(
             #    $message->getThreadId(),
             #    $messageId,
             #    $reference,
-            #    (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
+            #    (empty($headerArr['SUBJECT']) ? '': $headerArr['SUBJECT']),
             #    $body,
-            #    (empty($headerArr['To']) ? '': $headerArr['To']),
-            #    (empty($headerArr['From']) ? '': $headerArr['From'])
+            #    (empty($headerArr['TO']) ? '': $headerArr['TO']),
+            #    (empty($headerArr['FROM']) ? '': $headerArr['FROM'])
             #);
 			#sendMessage($service, $user, newMessage(
             #    $message->getThreadId(),
             #    $messageId,
             #    $reference,
-            #    (empty($headerArr['Subject']) ? '': $headerArr['Subject']),
+            #    (empty($headerArr['SUBJECT']) ? '': $headerArr['SUBJECT']),
             #    $body,
-            #    (empty($headerArr['To']) ? '': $headerArr['To']),
-            #    (empty($headerArr['From']) ? '': $headerArr['From'])
+            #    (empty($headerArr['TO']) ? '': $headerArr['TO']),
+            #    (empty($headerArr['FROM']) ? '': $headerArr['FROM'])
             #));
 			break;
 	}
