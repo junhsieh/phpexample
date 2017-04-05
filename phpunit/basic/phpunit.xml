@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<phpunit colors="true">
+	<testsuites>
+		<testsuite name="Hello/Car Test Suite">
+			<directory>./tests/My/Hello</directory>
+			<file>./src/My/Hello/Car.php</file>
+		</testsuite>
+	</testsuites>
+	<php>
+		<var name="SOME_CONSTANT_CONFIG" value="Test Value" />
+	</php>
+</phpunit>
+
