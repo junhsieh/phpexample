@@ -18,3 +18,5 @@
 
 \# ls -l vendor/composer/autoload*  
 \# cat ./vendor/composer/autoload_psr4.php  
+
+\# ./vendor/bin/phpunit --verbose --debug  
