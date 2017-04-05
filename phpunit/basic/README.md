@@ -6,7 +6,8 @@
 
 \# cat composer.json
 
-```{
+```
+{
     "require-dev": {
         "phpunit/phpunit": "^6.0",
         "phpunit/php-invoker": "^1.1",
