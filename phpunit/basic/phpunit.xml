@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<phpunit colors="true">
+<phpunit colors="true" bootstrap="vendor/autoload.php">
 	<testsuites>
-		<testsuite name="Hello/Car Test Suite">
-			<directory>./tests/My/Hello</directory>
-			<file>./src/My/Hello/Car.php</file>
+		<testsuite name="Hello Test Suite">
+			<file>tests/My/Hello/CarTest.php</file>
+			<file>tests/My/Hello/TankTest.php</file>
 		</testsuite>
 	</testsuites>
 	<php>
